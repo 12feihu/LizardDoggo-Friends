@@ -2113,7 +2113,7 @@
   <div id="update-banner">
     <span id="update-banner-text">⬆️ Update available — v<span id="update-new-ver"></span></span>
     <div id="update-banner-btns">
-      <button class="update-banner-dl" id="update-dl-btn" onclick="triggerUpdateDownload()">⬇ Download</button>
+      <button class="update-banner-dl" id="update-dl-btn" onclick="triggerUpdateDownload()">⬆ Update Now</button>
       <button class="update-banner-dismiss" onclick="dismissUpdateBanner()">✕</button>
     </div>
   </div>
@@ -10351,25 +10351,27 @@ async function triggerUpdateDownload() {
   try {
     const res = await fetch(UPDATE_CONFIG.dlUrl, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blob = await res.blob();
+    const newHtml = await res.text();
 
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objectUrl;
-    const ver = _latestVersion || 'latest';
-    a.download = `LizardDoggo&Friends-v${ver}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    // Release the blob URL after a short delay
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+    // Verify the fetched file actually contains a GAME_VERSION so we don't
+    // accidentally wipe the page with an error page or empty response.
+    if (!newHtml.includes('GAME_VERSION')) throw new Error('Fetched file does not look like a valid update');
 
-    showMessage('⬇️ Download started! Save data is preserved in your browser.');
-    dismissUpdateBanner();
+    showMessage('✅ Update downloaded — reloading…');
+
+    // Small delay so the message is visible before the page is replaced.
+    setTimeout(() => {
+      // localStorage survives document.write() since it's origin-scoped.
+      // Save immediately so nothing is lost mid-rewrite.
+      saveGame();
+      document.open();
+      document.write(newHtml);
+      document.close();
+    }, 800);
+
   } catch (err) {
-    showMessage(`⚠️ Download failed: ${err.message}`);
-    console.warn('[LizardDoggo] Download failed:', err);
-  } finally {
+    showMessage(`⚠️ Update failed: ${err.message}`);
+    console.warn('[LizardDoggo] Update failed:', err);
     if (btn) { btn.textContent = '⬇ Download'; btn.disabled = false; }
   }
 }

@@ -2104,8 +2104,8 @@
     </div>
     <div class="options-section-label">ℹ️ About</div>
     <div class="options-update-row">
-      <span class="audio-label" style="min-width:80px"></span>
-      <span class="options-update-status" id="options--label">v1.0.0</span>
+      <span class="audio-label" style="min-width:80px">Version</span>
+      <span class="options-update-status" id="options-version-label">v1.0.0</span>
       <button class="options-toggle" id="check-update-btn" onclick="manualCheckForUpdates()">Check</button>
     </div>
     <button class="picker-cancel" onclick="closeOptionsPanel()" style="margin-top:10px">Close</button>
@@ -10344,18 +10344,34 @@ function dismissUpdateBanner() {
 }
 window.dismissUpdateBanner = dismissUpdateBanner;
 
-function triggerUpdateDownload() {
-  // Create a temporary <a> with download attribute so the browser saves
-  // the file instead of navigating to it.
-  const a = document.createElement('a');
-  a.href = UPDATE_CONFIG.dlUrl;
-  const ver = _latestVersion || 'latest';
-  a.download = `LizardDoggo&Friends-v${ver}.html`;
-  a.target = '_blank';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  showMessage('⬇️ Downloading update… save data is preserved in your browser!');
+async function triggerUpdateDownload() {
+  const btn = document.getElementById('update-dl-btn');
+  if (btn) { btn.textContent = '⏳ Fetching…'; btn.disabled = true; }
+
+  try {
+    const res = await fetch(UPDATE_CONFIG.dlUrl, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    const ver = _latestVersion || 'latest';
+    a.download = `LizardDoggo&Friends-v${ver}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Release the blob URL after a short delay
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+
+    showMessage('⬇️ Download started! Save data is preserved in your browser.');
+    dismissUpdateBanner();
+  } catch (err) {
+    showMessage(`⚠️ Download failed: ${err.message}`);
+    console.warn('[LizardDoggo] Download failed:', err);
+  } finally {
+    if (btn) { btn.textContent = '⬇ Download'; btn.disabled = false; }
+  }
 }
 window.triggerUpdateDownload = triggerUpdateDownload;
 

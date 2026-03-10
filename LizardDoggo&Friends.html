@@ -2,6 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- UPDATE BOOTSTRAP: runs before anything else. If a pending update was
+     fetched and stored in localStorage, apply it now and clear the key.
+     This is what makes location.reload() serve the new version. -->
+<script>(function(){
+  try {
+    var u = localStorage.getItem('lizardDoggoPal_pendingUpdate');
+    if (u) {
+      localStorage.removeItem('lizardDoggoPal_pendingUpdate');
+      document.open(); document.write(u); document.close();
+    }
+  } catch(e) {}
+})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Lizard Doggo Pal - Satisfactory Pet Sim</title>
 <style>
@@ -10343,10 +10355,9 @@ function dismissUpdateBanner() {
 window.dismissUpdateBanner = dismissUpdateBanner;
 
 async function triggerUpdateDownload() {
-  // Work from whichever button triggered this — options panel or banner
-  const optBtn = document.getElementById('check-update-btn');
+  const optBtn    = document.getElementById('check-update-btn');
   const bannerBtn = document.getElementById('update-dl-btn');
-  if (optBtn)    { optBtn.textContent = '⏳ Updating…'; optBtn.disabled = true; }
+  if (optBtn)    { optBtn.textContent = '⏳ Fetching…'; optBtn.disabled = true; }
   if (bannerBtn) { bannerBtn.textContent = '⏳ Fetching…'; bannerBtn.disabled = true; }
 
   try {
@@ -10356,19 +10367,22 @@ async function triggerUpdateDownload() {
 
     if (!newHtml.includes('GAME_VERSION')) throw new Error('Fetched file does not look like a valid update');
 
-    showMessage('✅ Update applied — reloading…');
+    // Persist save state first so nothing is lost
+    saveGame();
 
-    setTimeout(() => {
-      saveGame();
-      document.open();
-      document.write(newHtml);
-      document.close();
-    }, 800);
+    // Store the new HTML for the bootstrap script to pick up on reload
+    localStorage.setItem('lizardDoggoPal_pendingUpdate', newHtml);
+
+    showMessage('✅ Update ready — reloading…');
+
+    // Reload loads the OLD file from disk, but the bootstrap script at the
+    // top of <head> intercepts immediately and writes the new version instead.
+    setTimeout(() => location.reload(), 800);
 
   } catch (err) {
     showMessage(`⚠️ Update failed: ${err.message}`);
     console.warn('[LizardDoggo] Update failed:', err);
-    // Restore both buttons to their pre-attempt state
+    try { localStorage.removeItem('lizardDoggoPal_pendingUpdate'); } catch(e) {}
     if (optBtn)    { optBtn.textContent = '⬆ Update Now'; optBtn.disabled = false; }
     if (bannerBtn) { bannerBtn.textContent = '⬆ Update Now'; bannerBtn.disabled = false; }
   }

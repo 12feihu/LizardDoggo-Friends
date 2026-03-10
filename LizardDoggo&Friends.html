@@ -2,18 +2,6 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<!-- UPDATE BOOTSTRAP: runs before anything else. If a pending update was
-     fetched and stored in localStorage, apply it now and clear the key.
-     This is what makes location.reload() serve the new version. -->
-<script>(function(){
-  try {
-    var u = localStorage.getItem('lizardDoggoPal_pendingUpdate');
-    if (u) {
-      localStorage.removeItem('lizardDoggoPal_pendingUpdate');
-      document.open(); document.write(u); document.close();
-    }
-  } catch(e) {}
-})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Lizard Doggo Pal - Satisfactory Pet Sim</title>
 <style>
@@ -2240,6 +2228,21 @@
 </div>
 
 <script>
+// ---- PENDING UPDATE BOOTSTRAP ----
+// Runs first, before any game code. By this point the page is fully parsed
+// so document.open() wipes the document completely — no duplicate elements.
+(function() {
+  try {
+    var u = localStorage.getItem('lizardDoggoPal_pendingUpdate');
+    if (u) {
+      localStorage.removeItem('lizardDoggoPal_pendingUpdate');
+      document.open();
+      document.write(u);
+      document.close();
+    }
+  } catch(e) {}
+})();
+// ----------------------------------
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 

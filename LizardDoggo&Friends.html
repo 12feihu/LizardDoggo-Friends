@@ -2232,7 +2232,7 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
 // ============ VERSION & AUTO-UPDATE ============
-const GAME_VERSION = '1.0.1';
+const GAME_VERSION = '1.0.3';
 
 // Configure these to match your GitHub repo.
 // RAW_URL  — used to fetch the file and extract its version string.
@@ -10333,9 +10333,7 @@ window.manualCheckForUpdates = manualCheckForUpdates;
 function _showUpdateBanner(newVer) {
   const el = document.getElementById('update-new-ver');
   if (el) el.textContent = newVer;
-  // Set download filename hint via the anchor
-  const dlBtn = document.getElementById('update-dl-btn');
-  if (dlBtn) dlBtn._newVer = newVer;
+  // Banner is a secondary indicator only — primary action is the options button
   document.getElementById('update-banner').classList.add('show');
 }
 
@@ -10345,24 +10343,22 @@ function dismissUpdateBanner() {
 window.dismissUpdateBanner = dismissUpdateBanner;
 
 async function triggerUpdateDownload() {
-  const btn = document.getElementById('update-dl-btn');
-  if (btn) { btn.textContent = '⏳ Fetching…'; btn.disabled = true; }
+  // Work from whichever button triggered this — options panel or banner
+  const optBtn = document.getElementById('check-update-btn');
+  const bannerBtn = document.getElementById('update-dl-btn');
+  if (optBtn)    { optBtn.textContent = '⏳ Updating…'; optBtn.disabled = true; }
+  if (bannerBtn) { bannerBtn.textContent = '⏳ Fetching…'; bannerBtn.disabled = true; }
 
   try {
     const res = await fetch(UPDATE_CONFIG.dlUrl, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const newHtml = await res.text();
 
-    // Verify the fetched file actually contains a GAME_VERSION so we don't
-    // accidentally wipe the page with an error page or empty response.
     if (!newHtml.includes('GAME_VERSION')) throw new Error('Fetched file does not look like a valid update');
 
-    showMessage('✅ Update downloaded — reloading…');
+    showMessage('✅ Update applied — reloading…');
 
-    // Small delay so the message is visible before the page is replaced.
     setTimeout(() => {
-      // localStorage survives document.write() since it's origin-scoped.
-      // Save immediately so nothing is lost mid-rewrite.
       saveGame();
       document.open();
       document.write(newHtml);
@@ -10372,14 +10368,31 @@ async function triggerUpdateDownload() {
   } catch (err) {
     showMessage(`⚠️ Update failed: ${err.message}`);
     console.warn('[LizardDoggo] Update failed:', err);
-    if (btn) { btn.textContent = '⬇ Download'; btn.disabled = false; }
+    // Restore both buttons to their pre-attempt state
+    if (optBtn)    { optBtn.textContent = '⬆ Update Now'; optBtn.disabled = false; }
+    if (bannerBtn) { bannerBtn.textContent = '⬆ Update Now'; bannerBtn.disabled = false; }
   }
 }
 window.triggerUpdateDownload = triggerUpdateDownload;
 
 function _setCheckBtnState(text) {
   const btn = document.getElementById('check-update-btn');
-  if (btn) btn.textContent = text;
+  if (!btn) return;
+  if (text === 'Update ready') {
+    // Repurpose the check button as a direct Update Now action
+    btn.textContent = '⬆ Update Now';
+    btn.onclick = triggerUpdateDownload;
+    btn.style.background = '#d87020';
+    btn.style.color = '#141010';
+    btn.style.fontWeight = '700';
+  } else {
+    // Reset to plain check button
+    btn.textContent = text;
+    btn.onclick = manualCheckForUpdates;
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.style.fontWeight = '';
+  }
 }
 
 function _setVersionLabel(text) {

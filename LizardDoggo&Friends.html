@@ -2229,18 +2229,21 @@
 
 <script>
 // ---- PENDING UPDATE BOOTSTRAP ----
-// Runs first, before any game code. By this point the page is fully parsed
-// so document.open() wipes the document completely — no duplicate elements.
+// Uses a full-page srcdoc iframe instead of document.write().
+// The iframe gets its own JS context so there are no const conflicts.
+// On file:// pages, srcdoc iframes share the same localStorage namespace.
 (function() {
-  try {
-    var u = localStorage.getItem('lizardDoggoPal_pendingUpdate');
-    if (u) {
-      localStorage.removeItem('lizardDoggoPal_pendingUpdate');
-      document.open();
-      document.write(u);
-      document.close();
-    }
-  } catch(e) {}
+  // If we're already inside an iframe (i.e. we ARE the update) don't recurse.
+  if (window !== window.top) return;
+  var u = null;
+  try { u = localStorage.getItem('lizardDoggoPal_pendingUpdate'); } catch(e) {}
+  if (!u) return;
+  try { localStorage.removeItem('lizardDoggoPal_pendingUpdate'); } catch(e) {}
+  var f = document.createElement('iframe');
+  f.srcdoc = u;
+  f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:none;z-index:2147483647;background:#1a0a20';
+  document.body.appendChild(f);
+  throw new Error('[LizardDoggo] Update applying in iframe — this error is harmless.');
 })();
 // ----------------------------------
 const canvas = document.getElementById('game');
@@ -10370,17 +10373,22 @@ async function triggerUpdateDownload() {
 
     if (!newHtml.includes('GAME_VERSION')) throw new Error('Fetched file does not look like a valid update');
 
-    // Persist save state first so nothing is lost
+    // Flush save state before handing off
     saveGame();
 
-    // Store the new HTML for the bootstrap script to pick up on reload
+    // Store so reloading the old file from disk re-applies the update
     localStorage.setItem('lizardDoggoPal_pendingUpdate', newHtml);
 
-    showMessage('✅ Update ready — reloading…');
-
-    // Reload loads the OLD file from disk, but the bootstrap script at the
-    // top of <head> intercepts immediately and writes the new version instead.
-    setTimeout(() => location.reload(), 800);
+    // Apply immediately: cover the whole page with a fresh iframe.
+    // The iframe has its own JS context so there are no const conflicts,
+    // and it shares localStorage with the parent (same null origin on file://).
+    // No document.write(), no page reload — clean and instant.
+    const iframe = document.createElement('iframe');
+    iframe.srcdoc = newHtml;
+    iframe.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:none;z-index:2147483647;background:#1a0a20';
+    document.body.appendChild(iframe);
+    dismissUpdateBanner();
+    showMessage('✅ Update applied!');
 
   } catch (err) {
     showMessage(`⚠️ Update failed: ${err.message}`);
